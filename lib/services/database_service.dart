@@ -22,21 +22,34 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 5,
       onConfigure: (Database db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (Database db, int version) async {
         await _createInvoicesTable(db);
         await _createBillsTable(db);
+        await _createMenuItemsTable(db);
       },
       onUpgrade: (Database db, int oldVersion, int newVersion) async {
         if (oldVersion < 2) {
           await _createBillsTable(db);
         }
+        if (oldVersion < 3) {
+          await _createMenuItemsTable(db);
+        }
+        if (oldVersion < 4) {
+          await _addMenuItemCategoryColumn(db);
+        }
+        if (oldVersion < 5) {
+          await _addMenuItemSubcategoryColumn(db);
+        }
       },
       onOpen: (Database db) async {
         await _createBillsTable(db);
+        await _createMenuItemsTable(db);
+        await _addMenuItemCategoryColumn(db);
+        await _addMenuItemSubcategoryColumn(db);
       },
     );
   }
@@ -67,6 +80,61 @@ class DatabaseService {
     ''');
     await db.execute(
       'CREATE INDEX IF NOT EXISTS idx_bills_timestamp ON bills(timestamp DESC)',
+    );
+  }
+
+  Future<void> _createMenuItemsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS menu_items(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        price REAL NOT NULL,
+        category TEXT NOT NULL DEFAULT '',
+        subcategory TEXT NOT NULL DEFAULT ''
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_menu_items_name ON menu_items(name)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_menu_items_category_name ON menu_items(category, name)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_menu_items_category_subcategory_name ON menu_items(category, subcategory, name)',
+    );
+  }
+
+  Future<void> _addMenuItemCategoryColumn(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(menu_items)');
+    final hasCategory = columns.any(
+      (column) => (column['name'] as String?) == 'category',
+    );
+
+    if (!hasCategory) {
+      await db.execute(
+        "ALTER TABLE menu_items ADD COLUMN category TEXT NOT NULL DEFAULT ''",
+      );
+    }
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_menu_items_category_name ON menu_items(category, name)',
+    );
+  }
+
+  Future<void> _addMenuItemSubcategoryColumn(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(menu_items)');
+    final hasSubcategory = columns.any(
+      (column) => (column['name'] as String?) == 'subcategory',
+    );
+
+    if (!hasSubcategory) {
+      await db.execute(
+        "ALTER TABLE menu_items ADD COLUMN subcategory TEXT NOT NULL DEFAULT ''",
+      );
+    }
+
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_menu_items_category_subcategory_name ON menu_items(category, subcategory, name)',
     );
   }
 }
