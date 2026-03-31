@@ -53,6 +53,48 @@ class DailyBillSummary {
   final int billCount;
 }
 
+class BestSellingItemSummary {
+  const BestSellingItemSummary({
+    required this.name,
+    required this.quantitySold,
+  });
+
+  final String name;
+  final int quantitySold;
+}
+
+class RecentBillSummary {
+  const RecentBillSummary({
+    required this.id,
+    required this.totalAmount,
+    required this.itemCount,
+    required this.timestamp,
+  });
+
+  final int id;
+  final double totalAmount;
+  final int itemCount;
+  final DateTime timestamp;
+}
+
+class DailyInsightsSummary {
+  const DailyInsightsSummary({
+    required this.totalSales,
+    required this.billCount,
+    required this.yesterdayTotalSales,
+    required this.bestSellingItem,
+    required this.peakTimeLabel,
+    required this.recentBills,
+  });
+
+  final double totalSales;
+  final int billCount;
+  final double yesterdayTotalSales;
+  final BestSellingItemSummary? bestSellingItem;
+  final String peakTimeLabel;
+  final List<RecentBillSummary> recentBills;
+}
+
 class MenuItemRecord {
   const MenuItemRecord({
     this.id,
@@ -100,15 +142,20 @@ class DbService {
     required double totalAmount,
     DateTime? timestamp,
   }) async {
+    if (items.isEmpty || totalAmount <= 0) {
+      throw ArgumentError('Cannot save an empty bill.');
+    }
+
     final db = await DatabaseService.instance.database;
+    final billRecord = BillRecord(
+      items: items,
+      totalAmount: totalAmount,
+      timestamp: timestamp ?? DateTime.now(),
+    );
 
     return db.insert(
       'bills',
-      BillRecord(
-        items: items,
-        totalAmount: totalAmount,
-        timestamp: timestamp ?? DateTime.now(),
-      ).toMap(),
+      billRecord.toMap(),
     );
   }
 
@@ -124,24 +171,7 @@ class DbService {
 
   Future<DailyBillSummary> fetchTodaySummary({DateTime? now}) async {
     final db = await DatabaseService.instance.database;
-    final currentTime = now ?? DateTime.now();
-    var businessDayDate = DateTime(
-      currentTime.year,
-      currentTime.month,
-      currentTime.day,
-    );
-
-    if (currentTime.hour < _businessDayStartHour) {
-      businessDayDate = businessDayDate.subtract(const Duration(days: 1));
-    }
-
-    final startOfBusinessDay = DateTime(
-      businessDayDate.year,
-      businessDayDate.month,
-      businessDayDate.day,
-      _businessDayStartHour,
-    );
-    final startOfNextBusinessDay = startOfBusinessDay.add(const Duration(days: 1));
+    final range = _businessDayRange(now ?? DateTime.now());
 
     final rows = await db.rawQuery(
       '''
@@ -152,8 +182,8 @@ class DbService {
       WHERE timestamp >= ? AND timestamp < ?
       ''',
       [
-        startOfBusinessDay.toIso8601String(),
-        startOfNextBusinessDay.toIso8601String(),
+        range.start.toIso8601String(),
+        range.end.toIso8601String(),
       ],
     );
 
@@ -162,6 +192,46 @@ class DbService {
     return DailyBillSummary(
       totalSales: (summaryRow['total_sales'] as num?)?.toDouble() ?? 0,
       billCount: (summaryRow['bill_count'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  Future<DailyInsightsSummary> fetchDailyInsights({DateTime? now}) async {
+    final currentTime = now ?? DateTime.now();
+    final todayRange = _businessDayRange(currentTime);
+    final yesterdayRange = _BusinessDayRange(
+      start: todayRange.start.subtract(const Duration(days: 1)),
+      end: todayRange.start,
+    );
+
+    final todayBills = await _fetchBillsInRange(todayRange);
+    final yesterdayTotalSales = await _fetchTotalSalesInRange(yesterdayRange);
+    final bestSellingItem = _calculateBestSellingItem(todayBills);
+    final peakTimeLabel = _calculatePeakTimeLabel(todayBills);
+
+    return DailyInsightsSummary(
+      totalSales: todayBills.fold<double>(
+        0,
+        (sum, bill) => sum + bill.totalAmount,
+      ),
+      billCount: todayBills.length,
+      yesterdayTotalSales: yesterdayTotalSales,
+      bestSellingItem: bestSellingItem,
+      peakTimeLabel: peakTimeLabel,
+      recentBills: todayBills
+          .take(5)
+          .where((bill) => bill.id != null)
+          .map(
+            (bill) => RecentBillSummary(
+              id: bill.id!,
+              totalAmount: bill.totalAmount,
+              itemCount: bill.items.fold<int>(
+                0,
+                (sum, item) => sum + ((item['quantity'] as num?)?.toInt() ?? 0),
+              ),
+              timestamp: bill.timestamp,
+            ),
+          )
+          .toList(growable: false),
     );
   }
 
@@ -258,4 +328,140 @@ class DbService {
       whereArgs: [id],
     );
   }
+
+  Future<List<BillRecord>> _fetchBillsInRange(_BusinessDayRange range) async {
+    final db = await DatabaseService.instance.database;
+    final rows = await db.query(
+      'bills',
+      where: 'timestamp >= ? AND timestamp < ?',
+      whereArgs: [
+        range.start.toIso8601String(),
+        range.end.toIso8601String(),
+      ],
+      orderBy: 'timestamp DESC',
+    );
+
+    return rows.map(BillRecord.fromMap).toList(growable: false);
+  }
+
+  Future<double> _fetchTotalSalesInRange(_BusinessDayRange range) async {
+    final db = await DatabaseService.instance.database;
+    final rows = await db.rawQuery(
+      '''
+      SELECT COALESCE(SUM(total_amount), 0) AS total_sales
+      FROM bills
+      WHERE timestamp >= ? AND timestamp < ?
+      ''',
+      [
+        range.start.toIso8601String(),
+        range.end.toIso8601String(),
+      ],
+    );
+
+    return (rows.first['total_sales'] as num?)?.toDouble() ?? 0;
+  }
+
+  _BusinessDayRange _businessDayRange(DateTime currentTime) {
+    var businessDayDate = DateTime(
+      currentTime.year,
+      currentTime.month,
+      currentTime.day,
+    );
+
+    if (currentTime.hour < _businessDayStartHour) {
+      businessDayDate = businessDayDate.subtract(const Duration(days: 1));
+    }
+
+    final start = DateTime(
+      businessDayDate.year,
+      businessDayDate.month,
+      businessDayDate.day,
+      _businessDayStartHour,
+    );
+
+    return _BusinessDayRange(
+      start: start,
+      end: start.add(const Duration(days: 1)),
+    );
+  }
+
+  BestSellingItemSummary? _calculateBestSellingItem(List<BillRecord> bills) {
+    final quantitiesByName = <String, int>{};
+
+    for (final bill in bills) {
+      for (final item in bill.items) {
+        final name = (item['name'] as String?)?.trim() ?? '';
+        if (name.isEmpty) {
+          continue;
+        }
+
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        quantitiesByName.update(
+          name,
+          (current) => current + quantity,
+          ifAbsent: () => quantity,
+        );
+      }
+    }
+
+    if (quantitiesByName.isEmpty) {
+      return null;
+    }
+
+    var bestName = '';
+    var bestQuantity = -1;
+    for (final entry in quantitiesByName.entries) {
+      if (entry.value > bestQuantity) {
+        bestName = entry.key;
+        bestQuantity = entry.value;
+      }
+    }
+
+    return BestSellingItemSummary(
+      name: bestName,
+      quantitySold: bestQuantity,
+    );
+  }
+
+  String _calculatePeakTimeLabel(List<BillRecord> bills) {
+    if (bills.isEmpty) {
+      return 'No rush yet';
+    }
+
+    final hourlyCounts = List<int>.filled(24, 0);
+    for (final bill in bills) {
+      hourlyCounts[bill.timestamp.toLocal().hour]++;
+    }
+
+    var bestStartHour = _businessDayStartHour;
+    var bestCount = -1;
+
+    for (var hour = 0; hour < 24; hour++) {
+      final windowCount = hourlyCounts[hour] + hourlyCounts[(hour + 1) % 24];
+      if (windowCount > bestCount) {
+        bestCount = windowCount;
+        bestStartHour = hour;
+      }
+    }
+
+    final endHour = (bestStartHour + 2) % 24;
+    return '${_formatHour(bestStartHour)}-${_formatHour(endHour)}';
+  }
+
+  String _formatHour(int hour) {
+    final normalizedHour = hour % 24;
+    final hour12 = normalizedHour % 12 == 0 ? 12 : normalizedHour % 12;
+    final suffix = normalizedHour >= 12 ? 'PM' : 'AM';
+    return '$hour12 $suffix';
+  }
+}
+
+class _BusinessDayRange {
+  const _BusinessDayRange({
+    required this.start,
+    required this.end,
+  });
+
+  final DateTime start;
+  final DateTime end;
 }

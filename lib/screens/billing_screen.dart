@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/db_service.dart';
+import 'history_screen.dart';
 import 'menu_screen.dart';
 import 'summary_screen.dart';
 
@@ -215,7 +216,7 @@ class _BillingScreenState extends State<BillingScreen> {
       return;
     }
 
-    final billSnapshot = _selectedItems
+    final itemsJson = _selectedItems
         .map(
           (selectedItem) => <String, Object?>{
             'name': selectedItem.item.name,
@@ -225,7 +226,11 @@ class _BillingScreenState extends State<BillingScreen> {
           },
         )
         .toList(growable: false);
-    final totalAmountSnapshot = _totalAmount;
+    if (itemsJson.isEmpty) {
+      return;
+    }
+
+    final totalSnapshot = _totalAmount;
     final timestamp = DateTime.now();
 
     setState(() {
@@ -233,11 +238,14 @@ class _BillingScreenState extends State<BillingScreen> {
     });
 
     try {
-      await DbService.instance.saveBill(
-        items: billSnapshot,
-        totalAmount: totalAmountSnapshot,
+      final savedBillId = await DbService.instance.saveBill(
+        items: itemsJson,
+        totalAmount: totalSnapshot,
         timestamp: timestamp,
       );
+      if (savedBillId <= 0) {
+        throw StateError('Bill was not saved.');
+      }
 
       if (!mounted) {
         return;
@@ -562,7 +570,9 @@ class _BillingScreenState extends State<BillingScreen> {
                             ),
                             onPressed: _totalAmount == 0 || _isSavingBill
                                 ? null
-                                : _saveCurrentBillAndClear,
+                                : () async {
+                                    await _saveCurrentBillAndClear();
+                                  },
                             child: _isSavingBill
                                 ? const SizedBox(
                                     width: 20,
@@ -611,11 +621,41 @@ class _BillingScreenState extends State<BillingScreen> {
                             onPressed: () {
                               Navigator.of(context).push<void>(
                                 MaterialPageRoute<void>(
+                                  builder: (_) => const HistoryScreen(),
+                                ),
+                              );
+                            },
+                            child: const Text('History'),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: SizedBox(
+                          height: 56,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              textStyle: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
                                   builder: (_) => const SummaryScreen(),
                                 ),
                               );
                             },
-                            child: const Text('View Today'),
+                            child: const FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                'Today\'s Sales',
+                                maxLines: 1,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                           ),
                         ),
                       ),
