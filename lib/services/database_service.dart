@@ -6,6 +6,7 @@ class DatabaseService {
 
   static final DatabaseService instance = DatabaseService._();
   static Database? _database;
+  static const String billsTable = 'bills';
 
   Future<Database> get database async {
     if (_database != null) {
@@ -22,18 +23,18 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 5,
+      version: 6,
       onConfigure: (Database db) async {
         await db.execute('PRAGMA foreign_keys = ON');
       },
       onCreate: (Database db, int version) async {
         await _createInvoicesTable(db);
-        await _createBillsTable(db);
+        await ensureBillsTable(db);
         await _createMenuItemsTable(db);
       },
       onUpgrade: (Database db, int oldVersion, int newVersion) async {
         if (oldVersion < 2) {
-          await _createBillsTable(db);
+          await ensureBillsTable(db);
         }
         if (oldVersion < 3) {
           await _createMenuItemsTable(db);
@@ -44,9 +45,13 @@ class DatabaseService {
         if (oldVersion < 5) {
           await _addMenuItemSubcategoryColumn(db);
         }
+        if (oldVersion < 6) {
+          await _ensureBillsTotalColumn(db);
+        }
       },
       onOpen: (Database db) async {
-        await _createBillsTable(db);
+        await ensureBillsTable(db);
+        await _ensureBillsTotalColumn(db);
         await _createMenuItemsTable(db);
         await _addMenuItemCategoryColumn(db);
         await _addMenuItemSubcategoryColumn(db);
@@ -71,16 +76,105 @@ class DatabaseService {
 
   Future<void> _createBillsTable(Database db) async {
     await db.execute('''
-      CREATE TABLE IF NOT EXISTS bills(
+      CREATE TABLE IF NOT EXISTS $billsTable(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         items TEXT NOT NULL,
-        total_amount REAL NOT NULL,
+        total REAL NOT NULL,
         timestamp TEXT NOT NULL
       )
     ''');
     await db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_bills_timestamp ON bills(timestamp DESC)',
+      'CREATE INDEX IF NOT EXISTS idx_bills_timestamp ON $billsTable(timestamp DESC)',
     );
+  }
+
+  Future<void> ensureBillsTable(Database db) async {
+    final tables = await db.rawQuery(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      [billsTable],
+    );
+
+    if (tables.isEmpty) {
+      await _createBillsTable(db);
+      return;
+    }
+
+    final columns = await db.rawQuery('PRAGMA table_info($billsTable)');
+    final columnNames = columns
+        .map((column) => (column['name'] as String?) ?? '')
+        .toSet();
+    final hasRequiredColumns = columnNames.contains('id') &&
+        columnNames.contains('items') &&
+        columnNames.contains('timestamp') &&
+        (columnNames.contains('total') || columnNames.contains('total_amount'));
+
+    if (!hasRequiredColumns) {
+      await _rebuildBillsTable(db, columnNames: columnNames);
+      return;
+    }
+
+    await _ensureBillsTotalColumn(db);
+  }
+
+  Future<void> _ensureBillsTotalColumn(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(bills)');
+    final hasTotal = columns.any(
+      (column) => (column['name'] as String?) == 'total',
+    );
+    final hasLegacyTotalAmount = columns.any(
+      (column) => (column['name'] as String?) == 'total_amount',
+    );
+
+    if (!hasTotal) {
+      await db.execute(
+        "ALTER TABLE bills ADD COLUMN total REAL NOT NULL DEFAULT 0",
+      );
+    }
+
+    if (hasLegacyTotalAmount) {
+      await db.execute(
+        'UPDATE bills SET total = total_amount WHERE total = 0',
+      );
+    }
+  }
+
+  Future<void> _rebuildBillsTable(
+    Database db, {
+    required Set<String> columnNames,
+  }) async {
+    await db.transaction((txn) async {
+      await txn.execute('DROP TABLE IF EXISTS bills_repair');
+      await txn.execute('''
+        CREATE TABLE bills_repair(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          items TEXT NOT NULL,
+          total REAL NOT NULL,
+          timestamp TEXT NOT NULL
+        )
+      ''');
+
+      final hasItems = columnNames.contains('items');
+      final hasTimestamp = columnNames.contains('timestamp');
+      final totalExpression = columnNames.contains('total')
+          ? 'total'
+          : columnNames.contains('total_amount')
+              ? 'total_amount'
+              : '0';
+
+      if (hasItems && hasTimestamp) {
+        await txn.execute('''
+          INSERT INTO bills_repair (id, items, total, timestamp)
+          SELECT id, items, $totalExpression, timestamp
+          FROM $billsTable
+        ''');
+      }
+
+      await txn.execute('DROP TABLE IF EXISTS $billsTable');
+      await txn.execute('ALTER TABLE bills_repair RENAME TO $billsTable');
+      await txn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_bills_timestamp ON $billsTable(timestamp DESC)',
+      );
+    });
   }
 
   Future<void> _createMenuItemsTable(Database db) async {

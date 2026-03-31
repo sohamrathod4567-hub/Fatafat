@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/db_service.dart';
 import 'bill_detail_screen.dart';
@@ -11,23 +12,45 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  late Future<List<BillRecord>> _billsFuture;
+  List<BillRecord> _bills = const <BillRecord>[];
+  bool _isLoading = true;
+  bool _hasError = false;
 
   @override
   void initState() {
     super.initState();
-    _billsFuture = DbService.instance.fetchBills();
+    loadBills();
+  }
+
+  Future<void> loadBills() async {
+    try {
+      final bills = await DbService.instance.getAllBills();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _bills = bills;
+        _isLoading = false;
+        _hasError = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('History load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isLoading = false;
+        _hasError = true;
+      });
+    }
   }
 
   Future<void> _refreshBills() async {
-    final bills = await DbService.instance.fetchBills();
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _billsFuture = Future<List<BillRecord>>.value(bills);
-    });
+    await loadBills();
   }
 
   @override
@@ -39,55 +62,46 @@ class _HistoryScreenState extends State<HistoryScreen> {
         title: const Text('History'),
         centerTitle: false,
       ),
-      body: FutureBuilder<List<BillRecord>>(
-        future: _billsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Could not load bill history.',
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          final bills = snapshot.data ?? const <BillRecord>[];
-
-          if (bills.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'No past bills yet.',
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: _refreshBills,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              itemCount: bills.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final bill = bills[index];
-                return _HistoryBillCard(bill: bill);
-              },
-            ),
-          );
-        },
-      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _hasError
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Could not load bill history.',
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : _bills.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'No past bills yet.',
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _refreshBills,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        itemCount: _bills.length,
+                        itemBuilder: (context, index) {
+                          final bill = _bills[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == _bills.length - 1 ? 0 : 12,
+                            ),
+                            child: _HistoryBillCard(bill: bill),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }

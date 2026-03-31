@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'database_service.dart';
 
 class BillRecord {
@@ -19,13 +21,22 @@ class BillRecord {
     return <String, Object?>{
       'id': id,
       'items': jsonEncode(items),
-      'total_amount': totalAmount,
+      'total': totalAmount,
+      'timestamp': timestamp.toIso8601String(),
+    };
+  }
+
+  Map<String, Object?> toInsertMap() {
+    return <String, Object?>{
+      'items': jsonEncode(items),
+      'total': totalAmount,
       'timestamp': timestamp.toIso8601String(),
     };
   }
 
   factory BillRecord.fromMap(Map<String, Object?> map) {
-    final decodedItems = jsonDecode(map['items'] as String? ?? '[]');
+    final rawItems = map['items'] as String? ?? '[]';
+    final decodedItems = jsonDecode(rawItems);
 
     return BillRecord(
       id: map['id'] as int?,
@@ -36,7 +47,10 @@ class BillRecord {
             ),
           )
           .toList(growable: false),
-      totalAmount: (map['total_amount'] as num?)?.toDouble() ?? 0,
+      totalAmount:
+          (map['total'] as num?)?.toDouble() ??
+          (map['total_amount'] as num?)?.toDouble() ??
+          0,
       timestamp: DateTime.tryParse(map['timestamp'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -142,56 +156,81 @@ class DbService {
     required double totalAmount,
     DateTime? timestamp,
   }) async {
-    if (items.isEmpty || totalAmount <= 0) {
+    return insertBill(
+      items: items,
+      totalAmount: totalAmount,
+      timestamp: timestamp,
+    );
+  }
+
+  Future<int> insertBill({
+    required List<Map<String, Object?>> items,
+    required double totalAmount,
+    DateTime? timestamp,
+  }) async {
+    if (items.isEmpty) {
       throw ArgumentError('Cannot save an empty bill.');
     }
 
     final db = await DatabaseService.instance.database;
+    await DatabaseService.instance.ensureBillsTable(db);
     final billRecord = BillRecord(
       items: items,
       totalAmount: totalAmount,
       timestamp: timestamp ?? DateTime.now(),
     );
+    final totalColumnName = await _resolveBillTotalColumnName(db);
+    final insertMap = <String, Object?>{
+      'items': jsonEncode(billRecord.items),
+      totalColumnName: billRecord.totalAmount,
+      'timestamp': billRecord.timestamp.toIso8601String(),
+    };
 
-    return db.insert(
+    final insertedId = await db.insert(
       'bills',
-      billRecord.toMap(),
+      insertMap,
     );
+
+    debugPrint(
+      'Bill saved: id=$insertedId total=${billRecord.totalAmount} items=${billRecord.items.length} timestamp=${billRecord.timestamp.toIso8601String()}',
+    );
+
+    return insertedId;
   }
 
-  Future<List<BillRecord>> fetchBills() async {
+  Future<List<BillRecord>> fetchBills({int? limit}) async {
+    return getAllBills(limit: limit);
+  }
+
+  Future<List<BillRecord>> getAllBills({int? limit}) async {
     final db = await DatabaseService.instance.database;
+    await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
       orderBy: 'timestamp DESC',
+      limit: limit,
     );
 
-    return rows.map(BillRecord.fromMap).toList(growable: false);
+    final bills = rows.map(BillRecord.fromMap).toList(growable: false);
+    debugPrint('Bills fetched: count=${bills.length}');
+    return bills;
+  }
+
+  Future<List<BillRecord>> getTodayBills({DateTime? now}) async {
+    final bills = await _fetchBillsInRange(_businessDayRange(now ?? DateTime.now()));
+    debugPrint('Today bills fetched: count=${bills.length}');
+    return bills;
   }
 
   Future<DailyBillSummary> fetchTodaySummary({DateTime? now}) async {
-    final db = await DatabaseService.instance.database;
-    final range = _businessDayRange(now ?? DateTime.now());
-
-    final rows = await db.rawQuery(
-      '''
-      SELECT
-        COUNT(*) AS bill_count,
-        COALESCE(SUM(total_amount), 0) AS total_sales
-      FROM bills
-      WHERE timestamp >= ? AND timestamp < ?
-      ''',
-      [
-        range.start.toIso8601String(),
-        range.end.toIso8601String(),
-      ],
-    );
-
-    final summaryRow = rows.first;
+    final todayBills = await getTodayBills(now: now);
 
     return DailyBillSummary(
-      totalSales: (summaryRow['total_sales'] as num?)?.toDouble() ?? 0,
-      billCount: (summaryRow['bill_count'] as num?)?.toInt() ?? 0,
+      totalSales: todayBills.fold<double>(
+        0,
+        (sum, bill) => sum + bill.totalAmount,
+      ),
+      billCount: todayBills.length,
     );
   }
 
@@ -203,7 +242,7 @@ class DbService {
       end: todayRange.start,
     );
 
-    final todayBills = await _fetchBillsInRange(todayRange);
+    final todayBills = await getTodayBills(now: currentTime);
     final yesterdayTotalSales = await _fetchTotalSalesInRange(yesterdayRange);
     final bestSellingItem = _calculateBestSellingItem(todayBills);
     final peakTimeLabel = _calculatePeakTimeLabel(todayBills);
@@ -237,6 +276,7 @@ class DbService {
 
   Future<BillRecord?> fetchBillById(int id) async {
     final db = await DatabaseService.instance.database;
+    await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
       where: 'id = ?',
@@ -331,6 +371,7 @@ class DbService {
 
   Future<List<BillRecord>> _fetchBillsInRange(_BusinessDayRange range) async {
     final db = await DatabaseService.instance.database;
+    await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
       where: 'timestamp >= ? AND timestamp < ?',
@@ -344,11 +385,24 @@ class DbService {
     return rows.map(BillRecord.fromMap).toList(growable: false);
   }
 
+  Future<String> _resolveBillTotalColumnName(dynamic db) async {
+    final columns = await db.rawQuery('PRAGMA table_info(bills)');
+    final hasTotal = columns.any(
+      (column) => (column['name'] as String?) == 'total',
+    );
+
+    if (hasTotal) {
+      return 'total';
+    }
+
+    return 'total_amount';
+  }
+
   Future<double> _fetchTotalSalesInRange(_BusinessDayRange range) async {
     final db = await DatabaseService.instance.database;
     final rows = await db.rawQuery(
       '''
-      SELECT COALESCE(SUM(total_amount), 0) AS total_sales
+      SELECT COALESCE(SUM(total), COALESCE(SUM(total_amount), 0)) AS total_sales
       FROM bills
       WHERE timestamp >= ? AND timestamp < ?
       ''',

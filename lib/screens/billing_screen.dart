@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/db_service.dart';
 import 'history_screen.dart';
@@ -57,7 +58,10 @@ class _BillingScreenState extends State<BillingScreen> {
         }
         _isLoadingMenu = false;
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Menu load failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) {
         return;
       }
@@ -212,7 +216,7 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Future<void> _saveCurrentBillAndClear() async {
-    if (_isSavingBill || _selectedItems.isEmpty || _totalAmount <= 0) {
+    if (_selectedItems.isEmpty) {
       return;
     }
 
@@ -226,9 +230,6 @@ class _BillingScreenState extends State<BillingScreen> {
           },
         )
         .toList(growable: false);
-    if (itemsJson.isEmpty) {
-      return;
-    }
 
     final totalSnapshot = _totalAmount;
     final timestamp = DateTime.now();
@@ -238,14 +239,11 @@ class _BillingScreenState extends State<BillingScreen> {
     });
 
     try {
-      final savedBillId = await DbService.instance.saveBill(
+      await DbService.instance.saveBill(
         items: itemsJson,
         totalAmount: totalSnapshot,
         timestamp: timestamp,
       );
-      if (savedBillId <= 0) {
-        throw StateError('Bill was not saved.');
-      }
 
       if (!mounted) {
         return;
@@ -257,7 +255,10 @@ class _BillingScreenState extends State<BillingScreen> {
         _isSavingBill = false;
         _tableBills[_activeTable] = const _TableBillState();
       });
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Bill save failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+
       if (!mounted) {
         return;
       }
@@ -267,8 +268,10 @@ class _BillingScreenState extends State<BillingScreen> {
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not save the bill. Your current bill is still here.'),
+        SnackBar(
+          content: Text(
+            'Could not save the bill: $error',
+          ),
         ),
       );
     }
