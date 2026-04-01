@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 import 'history_screen.dart';
 import 'menu_screen.dart';
@@ -244,6 +246,7 @@ class _BillingScreenState extends State<BillingScreen> {
         totalAmount: totalSnapshot,
         timestamp: timestamp,
       );
+      await context.read<BillProvider>().refreshAll(now: timestamp);
 
       if (!mounted) {
         return;
@@ -417,14 +420,14 @@ class _BillingScreenState extends State<BillingScreen> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFDFDFD),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFDFDFD),
                 border: Border(
                   top: BorderSide(
-                    color: const Color(0xFF1F1F1F),
+                    color: Color(0xFF1F1F1F),
                   ),
                 ),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
                     color: Color(0x14000000),
                     blurRadius: 8,

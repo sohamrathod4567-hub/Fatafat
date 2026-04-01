@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'providers/bill_provider.dart';
 import 'providers/invoice_provider.dart';
 import 'screens/billing_screen.dart';
 import 'services/invoice_repository.dart';
@@ -12,6 +13,9 @@ class BillingApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<BillProvider>(
+          create: (_) => BillProvider()..refreshAll(),
+        ),
         ChangeNotifierProvider<InvoiceProvider>(
           create: (_) => InvoiceProvider(
             repository: InvoiceRepository(),

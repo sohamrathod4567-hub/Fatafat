@@ -21,7 +21,7 @@ class BillRecord {
     return <String, Object?>{
       'id': id,
       'items': jsonEncode(items),
-      'total': totalAmount,
+      'total_amount': totalAmount,
       'timestamp': timestamp.toIso8601String(),
     };
   }
@@ -29,7 +29,7 @@ class BillRecord {
   Map<String, Object?> toInsertMap() {
     return <String, Object?>{
       'items': jsonEncode(items),
-      'total': totalAmount,
+      'total_amount': totalAmount,
       'timestamp': timestamp.toIso8601String(),
     };
   }
@@ -179,16 +179,9 @@ class DbService {
       totalAmount: totalAmount,
       timestamp: timestamp ?? DateTime.now(),
     );
-    final totalColumnName = await _resolveBillTotalColumnName(db);
-    final insertMap = <String, Object?>{
-      'items': jsonEncode(billRecord.items),
-      totalColumnName: billRecord.totalAmount,
-      'timestamp': billRecord.timestamp.toIso8601String(),
-    };
-
     final insertedId = await db.insert(
       'bills',
-      insertMap,
+      billRecord.toInsertMap(),
     );
 
     debugPrint(
@@ -385,24 +378,11 @@ class DbService {
     return rows.map(BillRecord.fromMap).toList(growable: false);
   }
 
-  Future<String> _resolveBillTotalColumnName(dynamic db) async {
-    final columns = await db.rawQuery('PRAGMA table_info(bills)');
-    final hasTotal = columns.any(
-      (column) => (column['name'] as String?) == 'total',
-    );
-
-    if (hasTotal) {
-      return 'total';
-    }
-
-    return 'total_amount';
-  }
-
   Future<double> _fetchTotalSalesInRange(_BusinessDayRange range) async {
     final db = await DatabaseService.instance.database;
     final rows = await db.rawQuery(
       '''
-      SELECT COALESCE(SUM(total), COALESCE(SUM(total_amount), 0)) AS total_sales
+      SELECT COALESCE(SUM(total_amount), COALESCE(SUM(total), 0)) AS total_sales
       FROM bills
       WHERE timestamp >= ? AND timestamp < ?
       ''',

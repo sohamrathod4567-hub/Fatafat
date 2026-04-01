@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 
 const String _rupeeSymbol = '\u20B9';
@@ -14,70 +16,60 @@ class SummaryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Today Summary'),
-        centerTitle: false,
-      ),
-      body: FutureBuilder<DailyInsightsSummary>(
-        future: DbService.instance.fetchDailyInsights(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
+    return Consumer<BillProvider>(
+      builder: (context, provider, _) {
+        final summary = provider.dailyInsights;
+        final comparison = _buildComparison(summary);
 
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Could not load today\'s summary.',
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-
-          final summary = snapshot.data ??
-              const DailyInsightsSummary(
-                totalSales: 0,
-                billCount: 0,
-                yesterdayTotalSales: 0,
-                bestSellingItem: null,
-                peakTimeLabel: 'No rush yet',
-                recentBills: <RecentBillSummary>[],
-              );
-          final comparison = _buildComparison(summary);
-
-          return SafeArea(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                  children: [
-                    _PrimarySection(
-                      totalSales: summary.totalSales,
-                      billCount: summary.billCount,
-                      yesterdayTotalSales: summary.yesterdayTotalSales,
-                      comparisonLabel: comparison.label,
-                      comparisonColor: comparison.color,
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('Today Summary'),
+            centerTitle: false,
+          ),
+          body: provider.isLoadingSummary && summary.billCount == 0 && summary.totalSales == 0
+              ? const Center(child: CircularProgressIndicator())
+              : provider.summaryErrorMessage != null
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          provider.summaryErrorMessage!,
+                          style: theme.textTheme.titleMedium,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: () => provider.loadDailyInsights(),
+                      child: SafeArea(
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 560),
+                            child: ListView(
+                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                              children: [
+                                _PrimarySection(
+                                  totalSales: summary.totalSales,
+                                  billCount: summary.billCount,
+                                  yesterdayTotalSales: summary.yesterdayTotalSales,
+                                  comparisonLabel: comparison.label,
+                                  comparisonColor: comparison.color,
+                                ),
+                                const SizedBox(height: 18),
+                                _InsightSection(
+                                  bestSellingItem: summary.bestSellingItem,
+                                  peakTimeLabel: summary.peakTimeLabel,
+                                ),
+                                const SizedBox(height: 18),
+                                _RecentActivitySection(recentBills: summary.recentBills),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 18),
-                    _InsightSection(
-                      bestSellingItem: summary.bestSellingItem,
-                      peakTimeLabel: summary.peakTimeLabel,
-                    ),
-                    const SizedBox(height: 18),
-                    _RecentActivitySection(recentBills: summary.recentBills),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+        );
+      },
     );
   }
 }

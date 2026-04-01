@@ -1,107 +1,69 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 
+import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 import 'bill_detail_screen.dart';
 
-class HistoryScreen extends StatefulWidget {
+class HistoryScreen extends StatelessWidget {
   const HistoryScreen({super.key});
-
-  @override
-  State<HistoryScreen> createState() => _HistoryScreenState();
-}
-
-class _HistoryScreenState extends State<HistoryScreen> {
-  List<BillRecord> _bills = const <BillRecord>[];
-  bool _isLoading = true;
-  bool _hasError = false;
-
-  @override
-  void initState() {
-    super.initState();
-    loadBills();
-  }
-
-  Future<void> loadBills() async {
-    try {
-      final bills = await DbService.instance.getAllBills();
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _bills = bills;
-        _isLoading = false;
-        _hasError = false;
-      });
-    } catch (error, stackTrace) {
-      debugPrint('History load failed: $error');
-      debugPrintStack(stackTrace: stackTrace);
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _hasError = true;
-      });
-    }
-  }
-
-  Future<void> _refreshBills() async {
-    await loadBills();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    return Consumer<BillProvider>(
+      builder: (context, provider, _) {
+        final bills = provider.bills;
+        final isLoading = provider.isLoadingBills;
+        final hasError = provider.historyErrorMessage != null;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        centerTitle: false,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _hasError
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      'Could not load bill history.',
-                      style: theme.textTheme.titleMedium,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                )
-              : _bills.isEmpty
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('History'),
+            centerTitle: false,
+          ),
+          body: isLoading && bills.isEmpty
+              ? const Center(child: CircularProgressIndicator())
+              : hasError
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          'No past bills yet.',
+                          provider.historyErrorMessage!,
                           style: theme.textTheme.titleMedium,
                           textAlign: TextAlign.center,
                         ),
                       ),
                     )
-                  : RefreshIndicator(
-                      onRefresh: _refreshBills,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                        itemCount: _bills.length,
-                        itemBuilder: (context, index) {
-                          final bill = _bills[index];
-                          return Padding(
-                            padding: EdgeInsets.only(
-                              bottom: index == _bills.length - 1 ? 0 : 12,
+                  : bills.isEmpty
+                      ? Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              'No past bills yet.',
+                              style: theme.textTheme.titleMedium,
+                              textAlign: TextAlign.center,
                             ),
-                            child: _HistoryBillCard(bill: bill),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                        )
+                      : RefreshIndicator(
+                          onRefresh: provider.loadBills,
+                          child: ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                            itemCount: bills.length,
+                            itemBuilder: (context, index) {
+                              final bill = bills[index];
+                              return Padding(
+                                padding: EdgeInsets.only(
+                                  bottom: index == bills.length - 1 ? 0 : 12,
+                                ),
+                                child: _HistoryBillCard(bill: bill),
+                              );
+                            },
+                          ),
+                        ),
+        );
+      },
     );
   }
 }

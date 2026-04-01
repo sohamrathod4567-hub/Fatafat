@@ -45,13 +45,9 @@ class DatabaseService {
         if (oldVersion < 5) {
           await _addMenuItemSubcategoryColumn(db);
         }
-        if (oldVersion < 6) {
-          await _ensureBillsTotalColumn(db);
-        }
       },
       onOpen: (Database db) async {
         await ensureBillsTable(db);
-        await _ensureBillsTotalColumn(db);
         await _createMenuItemsTable(db);
         await _addMenuItemCategoryColumn(db);
         await _addMenuItemSubcategoryColumn(db);
@@ -79,7 +75,7 @@ class DatabaseService {
       CREATE TABLE IF NOT EXISTS $billsTable(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         items TEXT NOT NULL,
-        total REAL NOT NULL,
+        total_amount REAL NOT NULL,
         timestamp TEXT NOT NULL
       )
     ''');
@@ -106,35 +102,11 @@ class DatabaseService {
     final hasRequiredColumns = columnNames.contains('id') &&
         columnNames.contains('items') &&
         columnNames.contains('timestamp') &&
-        (columnNames.contains('total') || columnNames.contains('total_amount'));
+        columnNames.contains('total_amount');
 
     if (!hasRequiredColumns) {
       await _rebuildBillsTable(db, columnNames: columnNames);
       return;
-    }
-
-    await _ensureBillsTotalColumn(db);
-  }
-
-  Future<void> _ensureBillsTotalColumn(Database db) async {
-    final columns = await db.rawQuery('PRAGMA table_info(bills)');
-    final hasTotal = columns.any(
-      (column) => (column['name'] as String?) == 'total',
-    );
-    final hasLegacyTotalAmount = columns.any(
-      (column) => (column['name'] as String?) == 'total_amount',
-    );
-
-    if (!hasTotal) {
-      await db.execute(
-        "ALTER TABLE bills ADD COLUMN total REAL NOT NULL DEFAULT 0",
-      );
-    }
-
-    if (hasLegacyTotalAmount) {
-      await db.execute(
-        'UPDATE bills SET total = total_amount WHERE total = 0',
-      );
     }
   }
 
@@ -148,22 +120,22 @@ class DatabaseService {
         CREATE TABLE bills_repair(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           items TEXT NOT NULL,
-          total REAL NOT NULL,
+          total_amount REAL NOT NULL,
           timestamp TEXT NOT NULL
         )
       ''');
 
       final hasItems = columnNames.contains('items');
       final hasTimestamp = columnNames.contains('timestamp');
-      final totalExpression = columnNames.contains('total')
-          ? 'total'
-          : columnNames.contains('total_amount')
-              ? 'total_amount'
+      final totalExpression = columnNames.contains('total_amount')
+          ? 'total_amount'
+          : columnNames.contains('total')
+              ? 'total'
               : '0';
 
       if (hasItems && hasTimestamp) {
         await txn.execute('''
-          INSERT INTO bills_repair (id, items, total, timestamp)
+          INSERT INTO bills_repair (id, items, total_amount, timestamp)
           SELECT id, items, $totalExpression, timestamp
           FROM $billsTable
         ''');
