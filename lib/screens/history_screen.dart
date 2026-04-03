@@ -1,69 +1,105 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 import 'bill_detail_screen.dart';
 
-class HistoryScreen extends StatelessWidget {
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  List<BillRecord> _bills = const <BillRecord>[];
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBills();
+  }
+
+  Future<void> _loadBills() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final bills = await DbService.instance.getAllBills();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _bills = bills;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _bills = const <BillRecord>[];
+        _isLoading = false;
+        _errorMessage = 'Could not load bill history.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Consumer<BillProvider>(
-      builder: (context, provider, _) {
-        final bills = provider.bills;
-        final isLoading = provider.isLoadingBills;
-        final hasError = provider.historyErrorMessage != null;
 
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('History'),
-            centerTitle: false,
-          ),
-          body: isLoading && bills.isEmpty
-              ? const Center(child: CircularProgressIndicator())
-              : hasError
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('History'),
+        centerTitle: false,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      _errorMessage!,
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : _bills.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Text(
-                          provider.historyErrorMessage!,
+                          'No past bills yet.',
                           style: theme.textTheme.titleMedium,
                           textAlign: TextAlign.center,
                         ),
                       ),
                     )
-                  : bills.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              'No past bills yet.',
-                              style: theme.textTheme.titleMedium,
-                              textAlign: TextAlign.center,
+                  : RefreshIndicator(
+                      onRefresh: _loadBills,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                        itemCount: _bills.length,
+                        itemBuilder: (context, index) {
+                          final bill = _bills[index];
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == _bills.length - 1 ? 0 : 12,
                             ),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: provider.loadBills,
-                          child: ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                            itemCount: bills.length,
-                            itemBuilder: (context, index) {
-                              final bill = bills[index];
-                              return Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: index == bills.length - 1 ? 0 : 12,
-                                ),
-                                child: _HistoryBillCard(bill: bill),
-                              );
-                            },
-                          ),
-                        ),
-        );
-      },
+                            child: _HistoryBillCard(bill: bill),
+                          );
+                        },
+                      ),
+                    ),
     );
   }
 }
