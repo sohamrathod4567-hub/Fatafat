@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 import 'history_screen.dart';
 import 'menu_screen.dart';
@@ -40,7 +38,7 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Future<void> _loadMenuItems() async {
     try {
-      final items = await DbService.instance.getAllMenuItems();
+      final items = await DbService.instance.getAllMenuItemsSortedBySales();
 
       if (!mounted) {
         return;
@@ -86,7 +84,13 @@ class _BillingScreenState extends State<BillingScreen> {
       groupedItems.putIfAbsent(category, () => <MenuItemRecord>[]).add(item);
     }
 
-    return groupedItems;
+    final sortedCategoryNames = groupedItems.keys.toList()
+      ..sort((first, second) => first.toLowerCase().compareTo(second.toLowerCase()));
+
+    return <String, List<MenuItemRecord>>{
+      for (final categoryName in sortedCategoryNames)
+        categoryName: List<MenuItemRecord>.unmodifiable(groupedItems[categoryName]!),
+    };
   }
 
   List<MenuItemRecord> get _visibleMenuItems {
@@ -246,7 +250,6 @@ class _BillingScreenState extends State<BillingScreen> {
         totalAmount: totalSnapshot,
         timestamp: timestamp,
       );
-      await context.read<BillProvider>().refreshAll(now: timestamp);
 
       if (!mounted) {
         return;
@@ -258,6 +261,8 @@ class _BillingScreenState extends State<BillingScreen> {
         _isSavingBill = false;
         _tableBills[_activeTable] = const _TableBillState();
       });
+
+      await _loadMenuItems();
     } catch (error, stackTrace) {
       debugPrint('Bill save failed: $error');
       debugPrintStack(stackTrace: stackTrace);
