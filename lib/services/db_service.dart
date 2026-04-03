@@ -36,21 +36,26 @@ class BillRecord {
 
   factory BillRecord.fromMap(Map<String, Object?> map) {
     final rawItems = map['items'] as String? ?? '[]';
-    final decodedItems = jsonDecode(rawItems);
+    late final List<Map<String, Object?>> parsedItems;
+
+    try {
+      final decodedItems = jsonDecode(rawItems);
+      if (decodedItems is List) {
+        parsedItems = decodedItems
+            .whereType<Map>()
+            .map((item) => Map<String, Object?>.from(item))
+            .toList(growable: false);
+      } else {
+        parsedItems = const <Map<String, Object?>>[];
+      }
+    } catch (_) {
+      parsedItems = const <Map<String, Object?>>[];
+    }
 
     return BillRecord(
       id: map['id'] as int?,
-      items: (decodedItems as List<dynamic>)
-          .map(
-            (item) => Map<String, Object?>.from(
-              item as Map,
-            ),
-          )
-          .toList(growable: false),
-      totalAmount:
-          (map['total'] as num?)?.toDouble() ??
-          (map['total_amount'] as num?)?.toDouble() ??
-          0,
+      items: parsedItems,
+      totalAmount: (map['total_amount'] as num?)?.toDouble() ?? 0,
       timestamp: DateTime.tryParse(map['timestamp'] as String? ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -200,6 +205,7 @@ class DbService {
     await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
+      columns: ['id', 'items', 'total_amount', 'timestamp'],
       orderBy: 'timestamp DESC',
       limit: limit,
     );
@@ -272,6 +278,7 @@ class DbService {
     await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
+      columns: ['id', 'items', 'total_amount', 'timestamp'],
       where: 'id = ?',
       whereArgs: [id],
       limit: 1,
@@ -293,6 +300,39 @@ class DbService {
     );
 
     return rows.map(MenuItemRecord.fromMap).toList(growable: false);
+  }
+
+  Future<List<MenuItemRecord>> getAllMenuItemsSortedBySales() async {
+    final items = await getAllMenuItems();
+    final soldQuantitiesByName = await _fetchSoldQuantitiesByItemName();
+    final rankedItems = items.toList(growable: false);
+
+    rankedItems.sort((first, second) {
+      final firstSoldCount = soldQuantitiesByName[first.name.trim()] ?? 0;
+      final secondSoldCount = soldQuantitiesByName[second.name.trim()] ?? 0;
+      final soldCountComparison = secondSoldCount.compareTo(firstSoldCount);
+      if (soldCountComparison != 0) {
+        return soldCountComparison;
+      }
+
+      final categoryComparison = first.category.toLowerCase().compareTo(
+        second.category.toLowerCase(),
+      );
+      if (categoryComparison != 0) {
+        return categoryComparison;
+      }
+
+      final subcategoryComparison = first.subcategory.toLowerCase().compareTo(
+        second.subcategory.toLowerCase(),
+      );
+      if (subcategoryComparison != 0) {
+        return subcategoryComparison;
+      }
+
+      return first.name.toLowerCase().compareTo(second.name.toLowerCase());
+    });
+
+    return rankedItems;
   }
 
   Future<int> addMenuItem({
@@ -367,6 +407,7 @@ class DbService {
     await DatabaseService.instance.ensureBillsTable(db);
     final rows = await db.query(
       'bills',
+      columns: ['id', 'items', 'total_amount', 'timestamp'],
       where: 'timestamp >= ? AND timestamp < ?',
       whereArgs: [
         range.start.toIso8601String(),
@@ -382,7 +423,7 @@ class DbService {
     final db = await DatabaseService.instance.database;
     final rows = await db.rawQuery(
       '''
-      SELECT COALESCE(SUM(total_amount), COALESCE(SUM(total), 0)) AS total_sales
+      SELECT COALESCE(SUM(total_amount), 0) AS total_sales
       FROM bills
       WHERE timestamp >= ? AND timestamp < ?
       ''',
@@ -420,23 +461,7 @@ class DbService {
   }
 
   BestSellingItemSummary? _calculateBestSellingItem(List<BillRecord> bills) {
-    final quantitiesByName = <String, int>{};
-
-    for (final bill in bills) {
-      for (final item in bill.items) {
-        final name = (item['name'] as String?)?.trim() ?? '';
-        if (name.isEmpty) {
-          continue;
-        }
-
-        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
-        quantitiesByName.update(
-          name,
-          (current) => current + quantity,
-          ifAbsent: () => quantity,
-        );
-      }
-    }
+    final quantitiesByName = _sumItemQuantitiesByName(bills);
 
     if (quantitiesByName.isEmpty) {
       return null;
@@ -487,6 +512,37 @@ class DbService {
     final hour12 = normalizedHour % 12 == 0 ? 12 : normalizedHour % 12;
     final suffix = normalizedHour >= 12 ? 'PM' : 'AM';
     return '$hour12 $suffix';
+  }
+
+  Future<Map<String, int>> _fetchSoldQuantitiesByItemName() async {
+    final bills = await getAllBills();
+    return _sumItemQuantitiesByName(bills);
+  }
+
+  Map<String, int> _sumItemQuantitiesByName(List<BillRecord> bills) {
+    final quantitiesByName = <String, int>{};
+
+    for (final bill in bills) {
+      for (final item in bill.items) {
+        final name = (item['name'] as String?)?.trim() ?? '';
+        if (name.isEmpty) {
+          continue;
+        }
+
+        final quantity = (item['quantity'] as num?)?.toInt() ?? 0;
+        if (quantity <= 0) {
+          continue;
+        }
+
+        quantitiesByName.update(
+          name,
+          (current) => current + quantity,
+          ifAbsent: () => quantity,
+        );
+      }
+    }
+
+    return quantitiesByName;
   }
 }
 
