@@ -216,7 +216,8 @@ class DbService {
   }
 
   Future<List<BillRecord>> getTodayBills({DateTime? now}) async {
-    final bills = await _fetchBillsInRange(_businessDayRange(now ?? DateTime.now()));
+    final bills =
+        await _fetchBillsInRange(_businessDayRange(now ?? DateTime.now()));
     debugPrint('Today bills fetched: count=${bills.length}');
     return bills;
   }
@@ -316,15 +317,15 @@ class DbService {
       }
 
       final categoryComparison = first.category.toLowerCase().compareTo(
-        second.category.toLowerCase(),
-      );
+            second.category.toLowerCase(),
+          );
       if (categoryComparison != 0) {
         return categoryComparison;
       }
 
       final subcategoryComparison = first.subcategory.toLowerCase().compareTo(
-        second.subcategory.toLowerCase(),
-      );
+            second.subcategory.toLowerCase(),
+          );
       if (subcategoryComparison != 0) {
         return subcategoryComparison;
       }
@@ -378,7 +379,9 @@ class DbService {
 
     for (final row in rows) {
       final item = MenuItemRecord.fromMap(row);
-      groupedItems.putIfAbsent(item.category, () => <MenuItemRecord>[]).add(item);
+      groupedItems
+          .putIfAbsent(item.category, () => <MenuItemRecord>[])
+          .add(item);
     }
 
     return groupedItems;
