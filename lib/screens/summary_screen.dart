@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/bill_provider.dart';
 import '../services/db_service.dart';
 
 const String _rupeeSymbol = '\u20B9';
@@ -9,67 +7,120 @@ const String _bullet = '\u2022';
 const String _upArrow = '\u2191';
 const String _downArrow = '\u2193';
 
-class SummaryScreen extends StatelessWidget {
+class SummaryScreen extends StatefulWidget {
   const SummaryScreen({super.key});
+
+  @override
+  State<SummaryScreen> createState() => _SummaryScreenState();
+}
+
+class _SummaryScreenState extends State<SummaryScreen> {
+  DailyInsightsSummary _summary = const DailyInsightsSummary(
+    totalSales: 0,
+    billCount: 0,
+    yesterdayTotalSales: 0,
+    bestSellingItem: null,
+    peakTimeLabel: 'No rush yet',
+    recentBills: <RecentBillSummary>[],
+  );
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSummary();
+  }
+
+  Future<void> _loadSummary() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final summary = await DbService.instance.fetchDailyInsights();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _summary = summary;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _summary = const DailyInsightsSummary(
+          totalSales: 0,
+          billCount: 0,
+          yesterdayTotalSales: 0,
+          bestSellingItem: null,
+          peakTimeLabel: 'No rush yet',
+          recentBills: <RecentBillSummary>[],
+        );
+        _isLoading = false;
+        _errorMessage = 'Could not load today\'s summary.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final comparison = _buildComparison(_summary);
 
-    return Consumer<BillProvider>(
-      builder: (context, provider, _) {
-        final summary = provider.dailyInsights;
-        final comparison = _buildComparison(summary);
-
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Today Summary'),
-            centerTitle: false,
-          ),
-          body: provider.isLoadingSummary && summary.billCount == 0 && summary.totalSales == 0
-              ? const Center(child: CircularProgressIndicator())
-              : provider.summaryErrorMessage != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          provider.summaryErrorMessage!,
-                          style: theme.textTheme.titleMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () => provider.loadDailyInsights(),
-                      child: SafeArea(
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 560),
-                            child: ListView(
-                              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                              children: [
-                                _PrimarySection(
-                                  totalSales: summary.totalSales,
-                                  billCount: summary.billCount,
-                                  yesterdayTotalSales: summary.yesterdayTotalSales,
-                                  comparisonLabel: comparison.label,
-                                  comparisonColor: comparison.color,
-                                ),
-                                const SizedBox(height: 18),
-                                _InsightSection(
-                                  bestSellingItem: summary.bestSellingItem,
-                                  peakTimeLabel: summary.peakTimeLabel,
-                                ),
-                                const SizedBox(height: 18),
-                                _RecentActivitySection(recentBills: summary.recentBills),
-                              ],
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Today Summary'),
+        centerTitle: false,
+      ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      _errorMessage!,
+                      style: theme.textTheme.titleMedium,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _loadSummary,
+                  child: SafeArea(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 560),
+                        child: ListView(
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                          children: [
+                            _PrimarySection(
+                              totalSales: _summary.totalSales,
+                              billCount: _summary.billCount,
+                              yesterdayTotalSales: _summary.yesterdayTotalSales,
+                              comparisonLabel: comparison.label,
+                              comparisonColor: comparison.color,
                             ),
-                          ),
+                            const SizedBox(height: 18),
+                            _InsightSection(
+                              bestSellingItem: _summary.bestSellingItem,
+                              peakTimeLabel: _summary.peakTimeLabel,
+                            ),
+                            const SizedBox(height: 18),
+                            _RecentActivitySection(recentBills: _summary.recentBills),
+                          ],
                         ),
                       ),
                     ),
-        );
-      },
+                  ),
+                ),
     );
   }
 }
