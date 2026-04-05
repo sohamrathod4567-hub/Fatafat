@@ -18,7 +18,7 @@ class _BillingScreenState extends State<BillingScreen> {
   final List<MenuItemRecord> _menuItems = <MenuItemRecord>[];
   final Map<String, List<MenuItemRecord>> _menuItemsByCategory =
       <String, List<MenuItemRecord>>{};
-  final List<_SelectedItem> _selectedItems = [];
+  final List<_SelectedItem> _selectedItems = <_SelectedItem>[];
   final Map<int, _TableBillState> _tableBills = <int, _TableBillState>{};
   double _totalAmount = 0;
   bool _isSavingBill = false;
@@ -50,10 +50,10 @@ class _BillingScreenState extends State<BillingScreen> {
         _menuItemsByCategory
           ..clear()
           ..addAll(_groupItemsByCategory(items));
-        if (_selectedCategory == null || !_menuItemsByCategory.containsKey(_selectedCategory)) {
-          _selectedCategory = _menuItemsByCategory.keys.isEmpty
-              ? null
-              : _menuItemsByCategory.keys.first;
+        if (_selectedCategory == null ||
+            !_menuItemsByCategory.containsKey(_selectedCategory)) {
+          _selectedCategory =
+              _menuItemsByCategory.keys.isEmpty ? null : _menuItemsByCategory.keys.first;
         }
         _isLoadingMenu = false;
       });
@@ -66,6 +66,9 @@ class _BillingScreenState extends State<BillingScreen> {
       }
 
       setState(() {
+        _menuItems.clear();
+        _menuItemsByCategory.clear();
+        _selectedCategory = null;
         _isLoadingMenu = false;
       });
 
@@ -147,6 +150,16 @@ class _BillingScreenState extends State<BillingScreen> {
       _saveCurrentTableState();
       _activeTable = tableNumber;
       _loadTableState(tableNumber);
+    });
+  }
+
+  void _selectCategory(String categoryName) {
+    if (_selectedCategory == categoryName) {
+      return;
+    }
+
+    setState(() {
+      _selectedCategory = categoryName;
     });
   }
 
@@ -260,7 +273,6 @@ class _BillingScreenState extends State<BillingScreen> {
         _isSavingBill = false;
         _tableBills[_activeTable] = const _TableBillState();
       });
-
       await _loadMenuItems();
     } catch (error, stackTrace) {
       debugPrint('Bill save failed: $error');
@@ -301,9 +313,35 @@ class _BillingScreenState extends State<BillingScreen> {
                   ? const Center(child: CircularProgressIndicator())
                   : _menuItems.isEmpty
                       ? Center(
-                          child: Text(
-                            'No menu items available.',
-                            style: theme.textTheme.titleMedium,
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'No menu added yet',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                SizedBox(
+                                  height: 52,
+                                  child: FilledButton(
+                                    onPressed: () async {
+                                      await Navigator.of(context).push<void>(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => const MenuScreen(),
+                                        ),
+                                      );
+                                      await _loadMenuItems();
+                                    },
+                                    child: const Text('Add Item'),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       : Column(
@@ -311,10 +349,12 @@ class _BillingScreenState extends State<BillingScreen> {
                             SizedBox(
                               height: 56,
                               child: ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(12, 8, 12, 2),
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 8, 12, 2),
                                 scrollDirection: Axis.horizontal,
                                 itemCount: _tableCount,
-                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
                                 itemBuilder: (context, index) {
                                   final tableNumber = index + 1;
                                   final isActive = tableNumber == _activeTable;
@@ -336,12 +376,15 @@ class _BillingScreenState extends State<BillingScreen> {
                                           width: isActive ? 2 : 1.4,
                                         ),
                                         elevation: isActive ? 1 : 0,
-                                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12),
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14),
+                                          borderRadius:
+                                              BorderRadius.circular(14),
                                         ),
                                       ),
-                                      onPressed: () => _switchTable(tableNumber),
+                                      onPressed: () =>
+                                          _switchTable(tableNumber),
                                       child: Text(
                                         'Table $tableNumber',
                                         textAlign: TextAlign.center,
@@ -358,40 +401,37 @@ class _BillingScreenState extends State<BillingScreen> {
                             SizedBox(
                               height: 56,
                               child: ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 6, 12, 4),
                                 scrollDirection: Axis.horizontal,
                                 itemCount: _menuItemsByCategory.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 8),
                                 itemBuilder: (context, index) {
-                                  final category = _menuItemsByCategory.keys.elementAt(index);
+                                  final category =
+                                      _menuItemsByCategory.keys.elementAt(index);
                                   final isSelected = category == _selectedCategory;
 
-                                  return SizedBox(
-                                    child: FilledButton(
-                                      style: FilledButton.styleFrom(
-                                        backgroundColor: isSelected
-                                            ? const Color(0xFF111111)
-                                            : const Color(0xFFEAEAEA),
-                                        foregroundColor: isSelected
-                                            ? Colors.white
-                                            : const Color(0xFF111111),
-                                        padding: const EdgeInsets.symmetric(horizontal: 18),
+                                  return FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: isSelected
+                                          ? const Color(0xFF111111)
+                                          : const Color(0xFFEAEAEA),
+                                      foregroundColor: isSelected
+                                          ? Colors.white
+                                          : const Color(0xFF111111),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 18),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(14),
                                       ),
-                                      onPressed: () {
-                                        if (_selectedCategory == category) {
-                                          return;
-                                        }
-
-                                        setState(() {
-                                          _selectedCategory = category;
-                                        });
-                                      },
-                                      child: Text(
-                                        category,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w800,
-                                        ),
+                                    ),
+                                    onPressed: () => _selectCategory(category),
+                                    child: Text(
+                                      category,
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   );
@@ -400,8 +440,10 @@ class _BillingScreenState extends State<BillingScreen> {
                             ),
                             Expanded(
                               child: GridView.builder(
-                                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
                                   crossAxisCount: 2,
                                   crossAxisSpacing: 10,
                                   mainAxisSpacing: 10,
@@ -413,7 +455,9 @@ class _BillingScreenState extends State<BillingScreen> {
 
                                   return _MenuButton(
                                     item: item,
-                                    onTap: _isSavingBill ? null : () => _addItem(item),
+                                    onTap: _isSavingBill
+                                        ? null
+                                        : () => _addItem(item),
                                   );
                                 },
                               ),
@@ -459,10 +503,12 @@ class _BillingScreenState extends State<BillingScreen> {
                             selectedItem: selectedItem,
                             onIncrease: _isSavingBill
                                 ? null
-                                : () => _increaseSelectedItemQuantity(selectedItem),
+                                : () =>
+                                    _increaseSelectedItemQuantity(selectedItem),
                             onDecrease: _isSavingBill
                                 ? null
-                                : () => _decreaseSelectedItemQuantity(selectedItem),
+                                : () =>
+                                    _decreaseSelectedItemQuantity(selectedItem),
                             onDelete: _isSavingBill
                                 ? null
                                 : () => _removeSelectedItem(selectedItem),
@@ -485,7 +531,8 @@ class _BillingScreenState extends State<BillingScreen> {
                                 color: Color(0xFFB00020),
                                 width: 1.6,
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               textStyle: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -546,7 +593,8 @@ class _BillingScreenState extends State<BillingScreen> {
                                           'Rs ${_totalAmount.toStringAsFixed(0)}',
                                           textAlign: TextAlign.center,
                                           maxLines: 1,
-                                          style: theme.textTheme.headlineSmall?.copyWith(
+                                          style: theme.textTheme.headlineSmall
+                                              ?.copyWith(
                                             fontWeight: FontWeight.w900,
                                             fontSize: 28,
                                             color: const Color(0xFF000000),
@@ -569,7 +617,8 @@ class _BillingScreenState extends State<BillingScreen> {
                             style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFF0B7A20),
                               foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               textStyle: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -645,7 +694,8 @@ class _BillingScreenState extends State<BillingScreen> {
                           height: 56,
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
                               textStyle: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
