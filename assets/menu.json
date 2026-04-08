@@ -1,0 +1,321 @@
+{
+  "categories": [
+    {
+      "name": "Pizza",
+      "items": [
+        {
+          "name": "Margherita",
+          "price": 120
+        },
+        {
+          "name": "Veg Cheese Pizza",
+          "price": 150
+        },
+        {
+          "name": "Italian Pizza",
+          "price": 180
+        },
+        {
+          "name": "Paneer Pizza",
+          "price": 180
+        },
+        {
+          "name": "Barbecue Pizza",
+          "price": 200
+        },
+        {
+          "name": "Exotic Pizza",
+          "price": 220
+        }
+      ]
+    },
+    {
+      "name": "Pasta",
+      "items": [
+        {
+          "name": "Arrabiata Pasta",
+          "price": 120
+        },
+        {
+          "name": "Alfredo Pasta",
+          "price": 140
+        },
+        {
+          "name": "Pesto Pasta",
+          "price": 150
+        },
+        {
+          "name": "Pink Sauce Pasta",
+          "price": 130
+        }
+      ]
+    },
+    {
+      "name": "Rice",
+      "items": [
+        {
+          "name": "Korean Garlic Rice",
+          "price": 120
+        },
+        {
+          "name": "Mexican Rice",
+          "price": 130
+        },
+        {
+          "name": "Pesto Rice",
+          "price": 140
+        },
+        {
+          "name": "Burnt Garlic Rice",
+          "price": 150
+        },
+        {
+          "name": "Peri Peri Cottage Cheese Rice",
+          "price": 160
+        },
+        {
+          "name": "Lazeez Rice",
+          "price": 140
+        },
+        {
+          "name": "Special Zesto Rice",
+          "price": 170
+        }
+      ]
+    },
+    {
+      "name": "Burger",
+      "items": [
+        {
+          "name": "Regular Burger",
+          "price": 80
+        },
+        {
+          "name": "Veg Cheese Burger",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "name": "Fries",
+      "items": [
+        {
+          "name": "Salty Fries",
+          "price": 70
+        },
+        {
+          "name": "Peri Peri Fries",
+          "price": 80
+        },
+        {
+          "name": "Cheesy Fries",
+          "price": 100
+        },
+        {
+          "name": "Cheesy Peri Peri Fries",
+          "price": 110
+        },
+        {
+          "name": "Zucchini Fries",
+          "price": 120
+        }
+      ]
+    },
+    {
+      "name": "Maggi",
+      "items": [
+        {
+          "name": "Masala Maggi",
+          "price": 50
+        },
+        {
+          "name": "Double Masala Maggi",
+          "price": 60
+        },
+        {
+          "name": "Vegetable Maggi",
+          "price": 70
+        },
+        {
+          "name": "Cheese Maggi",
+          "price": 80
+        },
+        {
+          "name": "Butter Maggi",
+          "price": 70
+        },
+        {
+          "name": "Cheese Garlic Maggi",
+          "price": 90
+        },
+        {
+          "name": "Garlic Cream Cheese Maggi",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "name": "Sandwich",
+      "items": [
+        {
+          "name": "Vegetable Sandwich",
+          "price": 80
+        },
+        {
+          "name": "Vegetable Cheese Sandwich",
+          "price": 100
+        },
+        {
+          "name": "Open Toast",
+          "price": 90
+        },
+        {
+          "name": "Masala Cheese Toast",
+          "price": 110
+        },
+        {
+          "name": "Barbeque Tosties",
+          "price": 120
+        },
+        {
+          "name": "Chilly Garlic Toast",
+          "price": 100
+        },
+        {
+          "name": "Chilly Cheese Toast",
+          "price": 110
+        }
+      ]
+    },
+    {
+      "name": "Garlic",
+      "items": [
+        {
+          "name": "Garlic Bread",
+          "price": 80
+        },
+        {
+          "name": "Cheese Garlic Bread",
+          "price": 100
+        },
+        {
+          "name": "Cheese Chilly Garlic Bread",
+          "price": 120
+        },
+        {
+          "name": "Bruschetta",
+          "price": 130
+        },
+        {
+          "name": "Paneer Tikka Bruschetta",
+          "price": 150
+        }
+      ]
+    },
+    {
+      "name": "Beverages",
+      "items": [
+        {
+          "name": "Tea",
+          "price": 30
+        },
+        {
+          "name": "Coffee",
+          "price": 50
+        },
+        {
+          "name": "Cold Coffee",
+          "price": 80
+        },
+        {
+          "name": "Hot Chocolate",
+          "price": 80
+        },
+        {
+          "name": "Oreo Shake",
+          "price": 100
+        },
+        {
+          "name": "Cold Chocolate",
+          "price": 90
+        },
+        {
+          "name": "French Vanilla",
+          "price": 110
+        },
+        {
+          "name": "Caramel Coffee",
+          "price": 100
+        }
+      ]
+    },
+    {
+      "name": "Iced Tea",
+      "items": [
+        {
+          "name": "Ice Tea",
+          "price": 60
+        },
+        {
+          "name": "Peach Ice Tea",
+          "price": 70
+        },
+        {
+          "name": "Berry Cooler",
+          "price": 80
+        }
+      ]
+    },
+    {
+      "name": "Starter",
+      "items": [
+        {
+          "name": "Mexican Paneer",
+          "price": 160
+        },
+        {
+          "name": "Pesto Paneer",
+          "price": 170
+        },
+        {
+          "name": "Burnt Garlic Paneer",
+          "price": 160
+        },
+        {
+          "name": "Peri Peri Paneer",
+          "price": 150
+        }
+      ]
+    },
+    {
+      "name": "Nachos",
+      "items": [
+        {
+          "name": "Cheese Nachos",
+          "price": 100
+        },
+        {
+          "name": "Mexican Nachos",
+          "price": 120
+        },
+        {
+          "name": "Loaded Nachos",
+          "price": 150
+        }
+      ]
+    },
+    {
+      "name": "Soup",
+      "items": [
+        {
+          "name": "Mexican Soup",
+          "price": 90
+        },
+        {
+          "name": "Cream of Veg",
+          "price": 80
+        }
+      ]
+    }
+  ]
+}
