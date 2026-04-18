@@ -306,7 +306,7 @@ class DbService {
   Future<List<MenuItemRecord>> getAllMenuItemsSortedBySales() async {
     final items = await getAllMenuItems();
     final soldQuantitiesByName = await _fetchSoldQuantitiesByItemName();
-    final rankedItems = items.toList(growable: false);
+    final rankedItems = items.toList();
 
     rankedItems.sort((first, second) {
       final firstSoldCount = soldQuantitiesByName[first.name.trim()] ?? 0;
