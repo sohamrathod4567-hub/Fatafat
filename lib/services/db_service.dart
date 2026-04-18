@@ -155,6 +155,56 @@ class DbService {
 
   static final DbService instance = DbService._();
   static const int _businessDayStartHour = 6;
+  static const Map<String, double> _knownMenuPriceByName = <String, double>{
+    'margherita': 190,
+    'veg cheese pizza': 220,
+    'italian pizza': 230,
+    'paneer pizza': 240,
+    'barbecue pizza': 250,
+    'exotic pizza': 280,
+    'arrabiata pasta': 250,
+    'alfredo pasta': 270,
+    'pesto pasta': 290,
+    'pink sauce pasta': 300,
+    'korean garlic rice': 240,
+    'mexican rice': 280,
+    'pesto rice': 290,
+    'burnt garlic rice': 300,
+    'peri peri cottage cheese rice': 340,
+    'lazeez rice': 350,
+    'special zesto rice': 370,
+    'regular burger': 140,
+    'veg cheese burger': 190,
+    'vegetable sandwich': 100,
+    'vegetable cheese sandwich': 120,
+    'open toast': 120,
+    'masala cheese toast': 130,
+    'barbeque tosties': 120,
+    'chilly garlic toast': 130,
+    'chilly cheese toast': 140,
+    'garlic bread': 100,
+    'cheese garlic bread': 150,
+    'cheese chilly garlic bread': 160,
+    'bruschetta': 160,
+    'paneer tikka bruschetta': 180,
+    'mexican paneer': 270,
+    'pesto paneer': 280,
+    'burnt garlic paneer': 280,
+    'peri peri paneer': 300,
+    'cheese nachos': 200,
+    'mexican nachos': 240,
+    'loaded nachos': 260,
+    'mexican soup': 120,
+    'cream of veg': 150,
+    'tea': 20,
+    'hot chocolate': 40,
+    'coffee': 100,
+    'oreo shake': 100,
+    'cold chocolate': 100,
+    'cold coffee': 110,
+    'french vanilla': 110,
+    'caramel coffee': 110,
+  };
 
   Future<int> saveBill({
     required List<Map<String, Object?>> items,
@@ -294,6 +344,7 @@ class DbService {
 
   Future<List<MenuItemRecord>> getAllMenuItems() async {
     final db = await DatabaseService.instance.database;
+    await _applyKnownMenuPriceCorrections(db);
     final rows = await db.query(
       'menu_items',
       orderBy:
@@ -546,6 +597,20 @@ class DbService {
     }
 
     return quantitiesByName;
+  }
+
+  Future<void> _applyKnownMenuPriceCorrections(Database db) async {
+    for (final entry in _knownMenuPriceByName.entries) {
+      await db.rawUpdate(
+        '''
+        UPDATE menu_items
+        SET price = ?
+        WHERE LOWER(TRIM(name)) = ?
+          AND price != ?
+        ''',
+        <Object>[entry.value, entry.key, entry.value],
+      );
+    }
   }
 }
 
