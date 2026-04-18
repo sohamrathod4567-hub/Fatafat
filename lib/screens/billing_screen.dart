@@ -36,6 +36,12 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Future<void> _loadMenuItems() async {
+    if (mounted) {
+      setState(() {
+        _isLoadingMenu = true;
+      });
+    }
+
     try {
       final items = await DbService.instance.getAllMenuItemsSortedBySales();
 
