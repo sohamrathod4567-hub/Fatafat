@@ -5,27 +5,27 @@
       "items": [
         {
           "name": "Margherita",
-          "price": 120
+          "price": 190
         },
         {
           "name": "Veg Cheese Pizza",
-          "price": 150
+          "price": 220
         },
         {
           "name": "Italian Pizza",
-          "price": 180
+          "price": 230
         },
         {
           "name": "Paneer Pizza",
-          "price": 180
+          "price": 240
         },
         {
           "name": "Barbecue Pizza",
-          "price": 200
+          "price": 250
         },
         {
           "name": "Exotic Pizza",
-          "price": 220
+          "price": 280
         }
       ]
     },
@@ -34,19 +34,19 @@
       "items": [
         {
           "name": "Arrabiata Pasta",
-          "price": 120
+          "price": 250
         },
         {
           "name": "Alfredo Pasta",
-          "price": 140
+          "price": 270
         },
         {
           "name": "Pesto Pasta",
-          "price": 150
+          "price": 290
         },
         {
           "name": "Pink Sauce Pasta",
-          "price": 130
+          "price": 300
         }
       ]
     },
@@ -55,31 +55,31 @@
       "items": [
         {
           "name": "Korean Garlic Rice",
-          "price": 120
+          "price": 240
         },
         {
           "name": "Mexican Rice",
-          "price": 130
+          "price": 280
         },
         {
           "name": "Pesto Rice",
-          "price": 140
+          "price": 290
         },
         {
           "name": "Burnt Garlic Rice",
-          "price": 150
+          "price": 300
         },
         {
           "name": "Peri Peri Cottage Cheese Rice",
-          "price": 160
+          "price": 340
         },
         {
           "name": "Lazeez Rice",
-          "price": 140
+          "price": 350
         },
         {
           "name": "Special Zesto Rice",
-          "price": 170
+          "price": 370
         }
       ]
     },
@@ -88,11 +88,11 @@
       "items": [
         {
           "name": "Regular Burger",
-          "price": 80
+          "price": 140
         },
         {
           "name": "Veg Cheese Burger",
-          "price": 100
+          "price": 190
         }
       ]
     },
@@ -159,19 +159,19 @@
       "items": [
         {
           "name": "Vegetable Sandwich",
-          "price": 80
-        },
-        {
-          "name": "Vegetable Cheese Sandwich",
           "price": 100
         },
         {
+          "name": "Vegetable Cheese Sandwich",
+          "price": 120
+        },
+        {
           "name": "Open Toast",
-          "price": 90
+          "price": 120
         },
         {
           "name": "Masala Cheese Toast",
-          "price": 110
+          "price": 130
         },
         {
           "name": "Barbeque Tosties",
@@ -179,11 +179,11 @@
         },
         {
           "name": "Chilly Garlic Toast",
-          "price": 100
+          "price": 130
         },
         {
           "name": "Chilly Cheese Toast",
-          "price": 110
+          "price": 140
         }
       ]
     },
@@ -192,23 +192,23 @@
       "items": [
         {
           "name": "Garlic Bread",
-          "price": 80
-        },
-        {
-          "name": "Cheese Garlic Bread",
           "price": 100
         },
         {
+          "name": "Cheese Garlic Bread",
+          "price": 150
+        },
+        {
           "name": "Cheese Chilly Garlic Bread",
-          "price": 120
+          "price": 160
         },
         {
           "name": "Bruschetta",
-          "price": 130
+          "price": 160
         },
         {
           "name": "Paneer Tikka Bruschetta",
-          "price": 150
+          "price": 180
         }
       ]
     },
@@ -217,19 +217,19 @@
       "items": [
         {
           "name": "Tea",
-          "price": 30
+          "price": 20
         },
         {
           "name": "Coffee",
-          "price": 50
+          "price": 100
         },
         {
           "name": "Cold Coffee",
-          "price": 80
+          "price": 110
         },
         {
           "name": "Hot Chocolate",
-          "price": 80
+          "price": 40
         },
         {
           "name": "Oreo Shake",
@@ -237,7 +237,7 @@
         },
         {
           "name": "Cold Chocolate",
-          "price": 90
+          "price": 100
         },
         {
           "name": "French Vanilla",
@@ -245,7 +245,7 @@
         },
         {
           "name": "Caramel Coffee",
-          "price": 100
+          "price": 110
         }
       ]
     },
@@ -271,19 +271,19 @@
       "items": [
         {
           "name": "Mexican Paneer",
-          "price": 160
+          "price": 270
         },
         {
           "name": "Pesto Paneer",
-          "price": 170
+          "price": 280
         },
         {
           "name": "Burnt Garlic Paneer",
-          "price": 160
+          "price": 280
         },
         {
           "name": "Peri Peri Paneer",
-          "price": 150
+          "price": 300
         }
       ]
     },
@@ -292,15 +292,15 @@
       "items": [
         {
           "name": "Cheese Nachos",
-          "price": 100
+          "price": 200
         },
         {
           "name": "Mexican Nachos",
-          "price": 120
+          "price": 240
         },
         {
           "name": "Loaded Nachos",
-          "price": 150
+          "price": 260
         }
       ]
     },
@@ -309,11 +309,11 @@
       "items": [
         {
           "name": "Mexican Soup",
-          "price": 90
+          "price": 120
         },
         {
           "name": "Cream of Veg",
-          "price": 80
+          "price": 150
         }
       ]
     }
